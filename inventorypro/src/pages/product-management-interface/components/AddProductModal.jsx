@@ -1,455 +1,91 @@
 import React, { useState } from 'react';
-import Icon from '../../../components/ui/AppIcon';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 
-const AddProductModal = ({ isOpen, onClose, onSave }) => {
-  const [formData, setFormData] = useState({
+const AddProductModal = ({ isOpen, onClose, onProductAdded, categories, locations }) => {
+  // Estado inicial basado en los datos reales que llegan
+  const [productData, setProductData] = useState({
     name: '',
     sku: '',
+    price: '0.00',
     description: '',
-    category: '',
-    brand: '',
-    cost: '',
-    price: '',
-    stock: '',
-    minStock: '',
-    supplier: '',
-    barcode: '',
-    weight: '',
-    dimensions: '',
-    status: 'active'
+    category_id: categories?.[0]?.id || '', // Selecciona la primera categoría por defecto
+    initial_quantity: '0',
+    location_id: locations?.[0]?.id || '' // Selecciona la primera ubicación por defecto
   });
-  const [currentStep, setCurrentStep] = useState(1);
-  const [errors, setErrors] = useState({});
+  const [error, setError] = useState(null);
 
-  const categoryOptions = [
-    { value: 'electronics', label: 'Electrónicos' },
-    { value: 'clothing', label: 'Ropa' },
-    { value: 'home', label: 'Hogar' },
-    { value: 'sports', label: 'Deportes' },
-    { value: 'books', label: 'Libros' }
-  ];
-
-  const supplierOptions = [
-    { value: 'techsupply', label: 'TechSupply S.A.' },
-    { value: 'globalparts', label: 'Global Parts Ltd.' },
-    { value: 'quickship', label: 'QuickShip Express' },
-    { value: 'reliablegoods', label: 'Reliable Goods Co.' }
-  ];
-
-  const statusOptions = [
-    { value: 'active', label: 'Activo' },
-    { value: 'inactive', label: 'Inactivo' }
-  ];
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors?.[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProductData(prev => ({ ...prev, [name]: value }));
   };
 
-  const generateSKU = () => {
-    const prefix = formData?.category ? formData?.category?.substring(0, 3)?.toUpperCase() : 'PRD';
-    const timestamp = Date.now()?.toString()?.slice(-6);
-    const sku = `${prefix}-${timestamp}`;
-    handleInputChange('sku', sku);
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
 
-  const generateBarcode = () => {
-    const barcode = Math.floor(Math.random() * 9000000000000) + 1000000000000;
-    handleInputChange('barcode', barcode?.toString());
-  };
-
-  const validateStep = (step) => {
-    const newErrors = {};
-
-    if (step === 1) {
-      if (!formData?.name?.trim()) newErrors.name = 'El nombre es requerido';
-      if (!formData?.sku?.trim()) newErrors.sku = 'El SKU es requerido';
-      if (!formData?.category) newErrors.category = 'La categoría es requerida';
+    // Validación
+    if (!productData.name || !productData.category_id || !productData.location_id) {
+      setError("Nombre, categoría y ubicación son requeridos.");
+      return;
     }
 
-    if (step === 2) {
-      if (!formData?.cost || parseFloat(formData?.cost) <= 0) {
-        newErrors.cost = 'El costo debe ser mayor a 0';
+    try {
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/add_item.php`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ...productData,
+            price: parseFloat(productData.price),
+            initial_quantity: parseInt(productData.initial_quantity, 10),
+            category_id: parseInt(productData.category_id, 10),
+            location_id: parseInt(productData.location_id, 10)
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error del servidor.');
       }
-      if (!formData?.price || parseFloat(formData?.price) <= 0) {
-        newErrors.price = 'El precio debe ser mayor a 0';
-      }
-      if (parseFloat(formData?.price) <= parseFloat(formData?.cost)) {
-        newErrors.price = 'El precio debe ser mayor al costo';
-      }
+      
+      onProductAdded(); // Llama a la función para recargar la lista y cerrar
+
+    } catch (err) {
+      setError(err.message);
     }
-
-    if (step === 3) {
-      if (!formData?.stock || parseInt(formData?.stock) < 0) {
-        newErrors.stock = 'El stock inicial es requerido';
-      }
-      if (!formData?.supplier) newErrors.supplier = 'El proveedor es requerido';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors)?.length === 0;
-  };
-
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => prev + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    setCurrentStep(prev => prev - 1);
-  };
-
-  const handleSave = () => {
-    if (validateStep(3)) {
-      onSave(formData);
-      handleClose();
-    }
-  };
-
-  const handleClose = () => {
-    setFormData({
-      name: '',
-      sku: '',
-      description: '',
-      category: '',
-      brand: '',
-      cost: '',
-      price: '',
-      stock: '',
-      minStock: '',
-      supplier: '',
-      barcode: '',
-      weight: '',
-      dimensions: '',
-      status: 'active'
-    });
-    setCurrentStep(1);
-    setErrors({});
-    onClose();
   };
 
   if (!isOpen) return null;
 
-  const steps = [
-    { id: 1, title: 'Información Básica', icon: 'Info' },
-    { id: 2, title: 'Precios', icon: 'DollarSign' },
-    { id: 3, title: 'Inventario', icon: 'Package' }
-  ];
-
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground">Agregar Nuevo Producto</h2>
-            <Button variant="ghost" size="icon" onClick={handleClose}>
-              <Icon name="X" size={20} />
-            </Button>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="flex items-center space-x-4 mt-6">
-            {steps?.map((step, index) => (
-              <div key={step?.id} className="flex items-center">
-                <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
-                  currentStep === step?.id
-                    ? 'bg-primary text-primary-foreground'
-                    : currentStep > step?.id
-                    ? 'bg-success text-success-foreground'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  <Icon name={step?.icon} size={16} />
-                  <span className="text-sm font-medium">{step?.title}</span>
-                </div>
-                {index < steps?.length - 1 && (
-                  <Icon name="ChevronRight" size={16} className="mx-2 text-muted-foreground" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-96">
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Nombre del Producto"
-                  type="text"
-                  value={formData?.name}
-                  onChange={(e) => handleInputChange('name', e?.target?.value)}
-                  error={errors?.name}
-                  required
-                  placeholder="Ej: Laptop Dell Inspiron 15"
-                />
-                <div className="space-y-2">
-                  <Input
-                    label="SKU"
-                    type="text"
-                    value={formData?.sku}
-                    onChange={(e) => handleInputChange('sku', e?.target?.value)}
-                    error={errors?.sku}
-                    required
-                    placeholder="Ej: ELE-123456"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    iconName="RefreshCw"
-                    iconPosition="left"
-                    onClick={generateSKU}
-                  >
-                    Generar SKU
-                  </Button>
-                </div>
-              </div>
-
-              <Input
-                label="Descripción"
-                type="text"
-                value={formData?.description}
-                onChange={(e) => handleInputChange('description', e?.target?.value)}
-                placeholder="Descripción detallada del producto"
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <Select
-                  label="Categoría"
-                  options={categoryOptions}
-                  value={formData?.category}
-                  onChange={(value) => handleInputChange('category', value)}
-                  error={errors?.category}
-                  required
-                  placeholder="Seleccionar categoría"
-                />
-                <Input
-                  label="Marca"
-                  type="text"
-                  value={formData?.brand}
-                  onChange={(e) => handleInputChange('brand', e?.target?.value)}
-                  placeholder="Ej: Dell, Samsung, Nike"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Input
-                  label="Código de Barras"
-                  type="text"
-                  value={formData?.barcode}
-                  onChange={(e) => handleInputChange('barcode', e?.target?.value)}
-                  placeholder="Código de barras del producto"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconName="Hash"
-                  iconPosition="left"
-                  onClick={generateBarcode}
-                >
-                  Generar Código
-                </Button>
-              </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+        <h2 className="text-2xl font-bold mb-4">Añadir Nuevo Producto</h2>
+        {error && <div className="bg-red-100 text-red-700 p-3 mb-4 rounded">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <Input label="Nombre del Producto" name="name" value={productData.name} onChange={handleChange} required />
+            <Input label="SKU" name="sku" value={productData.sku} onChange={handleChange} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Precio" name="price" type="number" step="0.01" value={productData.price} onChange={handleChange} required />
+              <Input label="Cantidad Inicial" name="initial_quantity" type="number" value={productData.initial_quantity} onChange={handleChange} required />
             </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Costo"
-                  type="number"
-                  step="0.01"
-                  value={formData?.cost}
-                  onChange={(e) => handleInputChange('cost', e?.target?.value)}
-                  error={errors?.cost}
-                  required
-                  placeholder="0.00"
-                />
-                <Input
-                  label="Precio de Venta"
-                  type="number"
-                  step="0.01"
-                  value={formData?.price}
-                  onChange={(e) => handleInputChange('price', e?.target?.value)}
-                  error={errors?.price}
-                  required
-                  placeholder="0.00"
-                />
-              </div>
-
-              {formData?.cost && formData?.price && (
-                <div className="bg-muted rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-foreground mb-2">Análisis de Margen</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Costo:</span>
-                      <p className="font-medium text-foreground">${parseFloat(formData?.cost)?.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Precio:</span>
-                      <p className="font-medium text-foreground">${parseFloat(formData?.price)?.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Margen:</span>
-                      <p className={`font-medium ${
-                        parseFloat(formData?.price) > parseFloat(formData?.cost) ? 'text-success' : 'text-error'
-                      }`}>
-                        {parseFloat(formData?.cost) > 0 
-                          ? (((parseFloat(formData?.price) - parseFloat(formData?.cost)) / parseFloat(formData?.cost)) * 100)?.toFixed(1) + '%' :'0%'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Peso (kg)"
-                  type="number"
-                  step="0.01"
-                  value={formData?.weight}
-                  onChange={(e) => handleInputChange('weight', e?.target?.value)}
-                  placeholder="0.00"
-                />
-                <Input
-                  label="Dimensiones (cm)"
-                  type="text"
-                  value={formData?.dimensions}
-                  onChange={(e) => handleInputChange('dimensions', e?.target?.value)}
-                  placeholder="L x A x H"
-                />
-              </div>
+            <Select label="Categoría" name="category_id" value={productData.category_id} onChange={handleChange} required>
+                <option value="">Selecciona una categoría</option>
+                {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </Select>
+            <Select label="Ubicación Inicial" name="location_id" value={productData.location_id} onChange={handleChange} required>
+                <option value="">Selecciona una ubicación</option>
+                {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+            </Select>
+            <Input as="textarea" label="Descripción" name="description" value={productData.description} onChange={handleChange} />
+            <div className="flex justify-end gap-3 mt-6">
+                <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+                <Button type="submit">Guardar Producto</Button>
             </div>
-          )}
-
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Stock Inicial"
-                  type="number"
-                  value={formData?.stock}
-                  onChange={(e) => handleInputChange('stock', e?.target?.value)}
-                  error={errors?.stock}
-                  required
-                  placeholder="0"
-                />
-                <Input
-                  label="Stock Mínimo"
-                  type="number"
-                  value={formData?.minStock}
-                  onChange={(e) => handleInputChange('minStock', e?.target?.value)}
-                  placeholder="10"
-                  description="Nivel para alertas de stock bajo"
-                />
-              </div>
-
-              <Select
-                label="Proveedor Principal"
-                options={supplierOptions}
-                value={formData?.supplier}
-                onChange={(value) => handleInputChange('supplier', value)}
-                error={errors?.supplier}
-                required
-                placeholder="Seleccionar proveedor"
-              />
-
-              <Select
-                label="Estado"
-                options={statusOptions}
-                value={formData?.status}
-                onChange={(value) => handleInputChange('status', value)}
-                placeholder="Seleccionar estado"
-              />
-
-              {/* Summary */}
-              <div className="bg-muted rounded-lg p-4">
-                <h4 className="text-sm font-medium text-foreground mb-3">Resumen del Producto</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Nombre:</span>
-                    <span className="text-foreground font-medium">{formData?.name || 'Sin nombre'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">SKU:</span>
-                    <span className="text-foreground font-mono">{formData?.sku || 'Sin SKU'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Categoría:</span>
-                    <span className="text-foreground">
-                      {categoryOptions?.find(c => c?.value === formData?.category)?.label || 'Sin categoría'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Precio:</span>
-                    <span className="text-foreground font-medium">
-                      ${formData?.price ? parseFloat(formData?.price)?.toFixed(2) : '0.00'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Stock Inicial:</span>
-                    <span className="text-foreground">{formData?.stock || '0'} unidades</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Paso {currentStep} de {steps?.length}
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-              >
-                Cancelar
-              </Button>
-              {currentStep > 1 && (
-                <Button
-                  variant="outline"
-                  iconName="ChevronLeft"
-                  iconPosition="left"
-                  onClick={handlePrevious}
-                >
-                  Anterior
-                </Button>
-              )}
-              {currentStep < steps?.length ? (
-                <Button
-                  variant="default"
-                  iconName="ChevronRight"
-                  iconPosition="right"
-                  onClick={handleNext}
-                >
-                  Siguiente
-                </Button>
-              ) : (
-                <Button
-                  variant="default"
-                  iconName="Check"
-                  iconPosition="left"
-                  onClick={handleSave}
-                >
-                  Guardar Producto
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );

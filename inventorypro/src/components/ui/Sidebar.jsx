@@ -1,38 +1,39 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import Icon from './AppIcon';
-import Button from './Button';
+import Icon from './AppIcon.jsx';
+import Button from './Button'; 
 
 const Sidebar = ({ isCollapsed = false, onToggleCollapse, user }) => {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  // Rutas actualizadas
   const navigationItems = [
     {
       label: 'Dashboard',
-      path: '/inventory-management-dashboard',
+      path: '/dashboard', 
       icon: 'LayoutDashboard',
       description: 'Overview & KPIs'
     },
     {
       label: 'Products',
-      path: '/product-management-interface',
+      path: '/products', 
       icon: 'Package',
       description: 'Manage inventory items',
       children: [
-        { label: 'All Products', path: '/product-management-interface' },
-        { label: 'Categories', path: '/category-management-system' }
+        { label: 'All Products', path: '/products' }, 
+        { label: 'Categories', path: '/categories' } 
       ]
     },
     {
       label: 'Inventory',
-      path: '/inventory-tracking-console',
+      path: '/inventory', 
       icon: 'Warehouse',
       description: 'Stock levels & tracking'
     },
     {
       label: 'Reports',
-      path: '/reporting-and-analytics-center',
+      path: '/reports', 
       icon: 'BarChart3',
       description: 'Analytics & insights'
     }
@@ -47,8 +48,11 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse, user }) => {
   };
 
   const isActiveRoute = (path) => {
-    if (path === '/product-management-interface') {
-      return location?.pathname === path || location?.pathname === '/category-management-system';
+    if (path === '/products') {
+      return location?.pathname === path || location?.pathname === '/categories';
+    }
+    if (path === '/dashboard') {
+        return location?.pathname === path || location?.pathname === '/';
     }
     return location?.pathname === path;
   };
@@ -57,7 +61,7 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse, user }) => {
     <div className="flex flex-col h-full">
       {/* Logo Section */}
       <div className={`flex items-center px-6 py-4 border-b border-border ${isCollapsed ? 'justify-center px-4' : ''}`}>
-        <Link to="/inventory-management-dashboard" className="flex items-center space-x-3" onClick={closeMobile}>
+        <Link to="/dashboard" className="flex items-center space-x-3" onClick={closeMobile}> 
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
             <Icon name="Package" size={20} color="white" />
           </div>
@@ -93,11 +97,11 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse, user }) => {
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
                     <div className="font-medium">{item?.label}</div>
-                    <div className={`text-xs mt-0.5 ${
-                      isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
-                    }`}>
-                      {item?.description}
-                    </div>
+                     <div className={`text-xs mt-0.5 ${
+                       isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                     }`}>
+                       {item?.description}
+                     </div>
                   </div>
                 )}
                 {!isCollapsed && hasChildren && (
@@ -132,30 +136,8 @@ const Sidebar = ({ isCollapsed = false, onToggleCollapse, user }) => {
         })}
       </nav>
 
-      {/* System Status */}
-      {!isCollapsed && (
-        <div className="px-4 py-4 border-t border-border">
-          <div className="bg-muted rounded-lg p-3">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className="w-2 h-2 bg-success rounded-full" />
-              <span className="text-sm font-medium text-foreground">System Status</span>
-            </div>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <div className="flex justify-between">
-                <span>ERP Connection</span>
-                <span className="text-success">Online</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Last Sync</span>
-                <span>2 min ago</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Collapse Toggle */}
-      <div className="px-4 py-4 border-t border-border">
+      <div className="px-4 py-4 border-t border-border mt-auto">
         <Button
           variant="ghost"
           size="sm"

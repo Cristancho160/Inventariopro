@@ -1,22 +1,36 @@
 <?php
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
+header("Content-Type: application/json; charset=UTF-8");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
+require 'db.php';
 
-require_once 'db.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents("php://input"), true);
 
-$input = json_decode(file_get_contents('php://input'), true);
-$id = isset($input['id']) ? (int)$input['id'] : null;
-if (!$id) { http_response_code(400); echo json_encode(['error'=>'id required']); exit; }
+    if (empty($data['id'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Se requiere el ID del item.']);
+        exit;
+    }
 
-try {
-    $stmt = $pdo->prepare("DELETE FROM items WHERE id = ?");
-    $stmt->execute([$id]);
-    echo json_encode(['success'=>true,'rows'=>$stmt->rowCount()]);
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error'=>$e->getMessage()]);
+    $id = $data['id'];
+
+    try {
+        $stmt = $pdo->prepare("DELETE FROM items WHERE id = ?");
+        $stmt->execute([$id]);
+
+        if ($stmt->rowCount()) {
+            echo json_encode(['message' => 'Item eliminado exitosamente']);
+        } else {
+            http_response_code(404);
+            echo json_encode(['error' => 'Item no encontrado.']);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error en la base de datos: ' . $e->getMessage()]);
+    }
 }
 ?>
